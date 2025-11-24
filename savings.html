@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Savings Goal - Budget Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Savings Goal</h1>
+            <p>Track Your Financial Goals</p>
+        </header>
+
+        <nav>
+            <a href="index.html">Daily Budget</a>
+            <a href="savings.html" class="active">Savings Goal</a>
+        </nav>
+
+        <!-- Savings Goal Setup -->
+        <div id="savingsSetup" class="card">
+            <h2>Set Your Savings Goal</h2>
+            <div class="form-group">
+                <label for="savingsGoal">Savings Goal Amount (₹):</label>
+                <input type="number" id="savingsGoal" placeholder="e.g., 10000">
+            </div>
+            <div class="form-group">
+                <label for="unlockDate">Unlock Date:</label>
+                <input type="date" id="unlockDate">
+            </div>
+            <div class="form-group">
+                <label for="unlockAmount">Or Unlock at Amount (₹):</label>
+                <input type="number" id="unlockAmount" placeholder="Leave empty if using date">
+            </div>
+            <p class="info-text">⚠️ Once set, these conditions are immutable and cannot be changed!</p>
+            <button onclick="setSavingsGoal()" class="btn-primary">Lock Savings Goal</button>
+        </div>
+
+        <!-- Savings Dashboard -->
+        <div id="savingsDashboard" class="hidden">
+            <!-- Battery Visualization -->
+            <div class="card">
+                <h2>Savings Progress</h2>
+                <div class="battery-container">
+                    <div class="battery">
+                        <div id="batteryFill" class="battery-fill"></div>
+                        <div class="battery-cap"></div>
+                    </div>
+                    <div id="batteryPercentage" class="battery-percentage">0%</div>
+                </div>
+                
+                <div class="savings-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Goal:</span>
+                        <span id="goalDisplay" class="stat-value">₹0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Saved:</span>
+                        <span id="savedDisplay" class="stat-value success">₹0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Remaining:</span>
+                        <span id="remainingDisplay" class="stat-value primary">₹0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goal Status -->
+            <div class="card">
+                <h2>Goal Status</h2>
+                <div id="goalStatus">
+                    <p>Goal: <strong id="goalStatusAmount">₹0</strong></p>
+                    <p>Unlock Condition: <strong id="unlockCondition">Not Set</strong></p>
+                    <p id="lockStatus" class="lock-status">🔒 Locked</p>
+                </div>
+                <button onclick="attemptUnlock()" class="btn-primary">Check Unlock Status</button>
+            </div>
+
+            <!-- Current Savings Balance -->
+            <div class="card">
+                <h2>Current Savings Account</h2>
+                <div class="balance-display">
+                    <span class="label">Available Balance:</span>
+                    <span class="amount success" id="currentSavings">₹0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load savings data
+        function loadSavingsData() {
+            const savingsGoal = localStorage.getItem('savingsGoal');
+            const savingsAccount = parseFloat(localStorage.getItem('savingsAccount') || 0);
+            const unlockDate = localStorage.getItem('unlockDate');
+            const unlockAmount = localStorage.getItem('unlockAmount');
+
+            if (savingsGoal) {
+                document.getElementById('savingsSetup').classList.add('hidden');
+                document.getElementById('savingsDashboard').classList.remove('hidden');
+                updateSavingsDisplay();
+            }
+        }
+
+        function setSavingsGoal() {
+            const goal = parseFloat(document.getElementById('savingsGoal').value);
+            const date = document.getElementById('unlockDate').value;
+            const amount = document.getElementById('unlockAmount').value;
+
+            if (!goal || goal <= 0) {
+                alert('Please enter a valid savings goal!');
+                return;
+            }
+
+            if (!date && !amount) {
+                alert('Please set either an unlock date or unlock amount!');
+                return;
+            }
+
+            // Store immutable settings
+            localStorage.setItem('savingsGoal', goal);
+            if (date) localStorage.setItem('unlockDate', date);
+            if (amount) localStorage.setItem('unlockAmount', amount);
+            localStorage.setItem('goalLocked', 'true');
+
+            alert('✅ Savings goal locked! This cannot be changed.');
+            loadSavingsData();
+        }
+
+        function updateSavingsDisplay() {
+            const goal = parseFloat(localStorage.getItem('savingsGoal') || 0);
+            const saved = parseFloat(localStorage.getItem('savingsAccount') || 0);
+            const remaining = goal - saved;
+            const percentage = Math.min((saved / goal) * 100, 100);
+
+            // Update battery
+            document.getElementById('batteryFill').style.width = percentage + '%';
+            document.getElementById('batteryPercentage').textContent = Math.round(percentage) + '%';
+
+            // Update stats
+            document.getElementById('goalDisplay').textContent = '₹' + goal.toFixed(2);
+            document.getElementById('savedDisplay').textContent = '₹' + saved.toFixed(2);
+            document.getElementById('remainingDisplay').textContent = remaining > 0 ? '-₹' + remaining.toFixed(2) : '₹0';
+            
+            // Update goal status
+            document.getElementById('goalStatusAmount').textContent = '₹' + goal.toFixed(2);
+            
+            const unlockDate = localStorage.getItem('unlockDate');
+            const unlockAmount = localStorage.getItem('unlockAmount');
+            let condition = '';
+            if (unlockDate) condition += 'Date: ' + unlockDate;
+            if (unlockAmount) condition += (condition ? ' or ' : '') + 'Amount: ₹' + unlockAmount;
+            document.getElementById('unlockCondition').textContent = condition;
+
+            // Update current savings
+            document.getElementById('currentSavings').textContent = '₹' + saved.toFixed(2);
+
+            // Check if unlocked
+            checkUnlockStatus();
+        }
+
+        function checkUnlockStatus() {
+            const unlockDate = localStorage.getItem('unlockDate');
+            const unlockAmount = parseFloat(localStorage.getItem('unlockAmount') || 0);
+            const saved = parseFloat(localStorage.getItem('savingsAccount') || 0);
+            
+            let isUnlocked = false;
+            
+            if (unlockDate) {
+                const targetDate = new Date(unlockDate);
+                const today = new Date();
+                if (today >= targetDate) isUnlocked = true;
+            }
+            
+            if (unlockAmount && saved >= unlockAmount) {
+                isUnlocked = true;
+            }
+
+            const statusElement = document.getElementById('lockStatus');
+            if (isUnlocked) {
+                statusElement.innerHTML = '🔓 Unlocked - Goal Achieved!';
+                statusElement.classList.add('unlocked');
+            } else {
+                statusElement.innerHTML = '🔒 Locked';
+                statusElement.classList.remove('unlocked');
+            }
+        }
+
+        function attemptUnlock() {
+            checkUnlockStatus();
+            const statusElement = document.getElementById('lockStatus');
+            if (statusElement.classList.contains('unlocked')) {
+                alert('🎉 Congratulations! Your savings goal is unlocked and accessible!');
+            } else {
+                alert('🔒 Your savings are still locked. Keep saving or wait for the unlock date!');
+            }
+        }
+
+        // Load data on page load
+        loadSavingsData();
+        setInterval(updateSavingsDisplay, 5000); // Update every 5 seconds
+    </script>
+</body>
+</html>
